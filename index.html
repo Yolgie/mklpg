@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>QD·Pass — QWERTY/Dvorak Safe Password Generator</title>
+  <title>MKL·PW — Multi-Keyboard-Layout Password Generator</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,700;1,300&family=Syne:wght@400;700;800&display=swap" rel="stylesheet" />
@@ -19,6 +19,7 @@
       --accent-dim:#7a6820;
       --green:     #4acea8;
       --red:       #e8604a;
+      --purple:    #a78bfa;
       --mono:      'JetBrains Mono', monospace;
       --sans:      'Syne', sans-serif;
     }
@@ -33,7 +34,6 @@
       padding: 2rem 1rem 4rem;
     }
 
-    /* Subtle grid background */
     body::before {
       content: '';
       position: fixed;
@@ -56,7 +56,7 @@
 
     /* ── Header ── */
     header {
-      margin-bottom: 2.5rem;
+      margin-bottom: 2rem;
       border-bottom: 1px solid var(--border);
       padding-bottom: 1.5rem;
     }
@@ -73,20 +73,131 @@
     .logo span { color: var(--accent); }
 
     .subtitle {
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       color: var(--muted);
       letter-spacing: 0.08em;
       text-transform: uppercase;
     }
 
-    /* ── Charset pill ── */
+    /* ── Layout selector row ── */
+    .layout-row {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 1.25rem;
+      flex-wrap: wrap;
+    }
+
+    .layout-pill {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      background: var(--surface);
+      border: 1px solid var(--border-hi);
+      border-radius: 6px;
+      padding: 0.35rem 0.75rem;
+    }
+
+    .layout-pill-label {
+      font-size: 0.58rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .layout-pill-name {
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: #fff;
+    }
+
+    .layout-op {
+      font-size: 1.1rem;
+      color: var(--border-hi);
+      font-weight: 300;
+      padding: 0 0.1rem;
+      user-select: none;
+    }
+
+    .layout-select-pill {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      background: var(--surface);
+      border: 1px solid var(--accent-dim);
+      border-radius: 6px;
+      padding: 0.35rem 0.75rem;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+
+    .layout-select-pill:focus-within {
+      border-color: var(--accent);
+    }
+
+    .layout-select {
+      background: transparent;
+      border: none;
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      font-weight: 500;
+      outline: none;
+      cursor: pointer;
+      padding: 0;
+      /* Make the arrow minimal */
+      -webkit-appearance: none;
+      appearance: none;
+      padding-right: 1.1rem;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237a6820'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0 center;
+    }
+
+    .layout-select option {
+      background: #1a1c22;
+      color: #fff;
+    }
+
+    .entropy-badge {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.7rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .entropy-value {
+      color: var(--green);
+      font-weight: 500;
+    }
+
+    .entropy-bar {
+      width: 60px;
+      height: 3px;
+      background: var(--border-hi);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .entropy-bar-fill {
+      height: 100%;
+      background: var(--green);
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+
+    /* ── Charset pills ── */
     .charset-row {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
       gap: 0.5rem;
-      margin-bottom: 2rem;
+      margin-bottom: 1.75rem;
       font-size: 0.7rem;
+      min-height: 2rem;
     }
 
     .charset-label {
@@ -102,16 +213,26 @@
       gap: 3px;
     }
 
+    .charset-count {
+      margin-left: 0.25rem;
+      color: var(--muted);
+      font-size: 0.65rem;
+    }
+
     .char-pill {
       background: var(--surface);
       border: 1px solid var(--border-hi);
       border-radius: 3px;
       padding: 1px 5px;
       font-size: 0.72rem;
-      color: var(--accent);
       font-family: var(--mono);
       user-select: none;
     }
+
+    .c-lower  { color: #fff; }
+    .c-upper  { color: var(--accent); }
+    .c-digit  { color: var(--green); }
+    .c-symbol { color: var(--purple); }
 
     /* ── Controls ── */
     .controls {
@@ -237,11 +358,10 @@
       cursor: default;
     }
 
-    /* Colour different char classes */
     .pw-text .c-digit  { color: var(--green); }
     .pw-text .c-upper  { color: var(--accent); }
     .pw-text .c-lower  { color: #fff; }
-    .pw-text .c-symbol { color: #a78bfa; }
+    .pw-text .c-symbol { color: var(--purple); }
 
     .copy-btn {
       background: transparent;
@@ -277,6 +397,16 @@
       color: var(--red);
     }
 
+    /* ── Empty state ── */
+    .empty-state {
+      padding: 2rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.8rem;
+      border: 1px dashed var(--border-hi);
+      border-radius: 6px;
+    }
+
     /* ── Footer ── */
     footer {
       margin-top: 2.5rem;
@@ -284,19 +414,18 @@
       padding-top: 1rem;
       font-size: 0.65rem;
       color: var(--muted);
-      letter-spacing: 0.05em;
+      letter-spacing: 0.04em;
       display: flex;
       justify-content: space-between;
       flex-wrap: wrap;
       gap: 0.5rem;
     }
 
-    footer a { color: var(--muted); text-decoration: underline; }
-
-    @media (max-width: 500px) {
+    @media (max-width: 600px) {
       .logo { font-size: 1.5rem; }
       .pw-text { font-size: 0.78rem; }
       .regen-btn { margin-left: 0; }
+      .entropy-badge { margin-left: 0; width: 100%; }
     }
   </style>
 </head>
@@ -304,15 +433,39 @@
 <div class="wrapper">
 
   <header>
-    <div class="logo">QD<span>·</span>Pass</div>
-    <div class="subtitle">QWERTY / Dvorak — same-key characters only · runs entirely in your browser</div>
+    <div class="logo">MKL<span>·</span>PW</div>
+    <div class="subtitle">Multi-Keyboard-Layout Password Generator — same physical key · both layouts · runs entirely in your browser</div>
   </header>
 
+  <!-- Layout selector -->
+  <div class="layout-row">
+    <div class="layout-pill">
+      <span class="layout-pill-label">Primary</span>
+      <span class="layout-pill-name">US QWERTY</span>
+    </div>
+    <span class="layout-op">∩</span>
+    <div class="layout-select-pill">
+      <span class="layout-pill-label">Secondary</span>
+      <select id="layoutSelect" class="layout-select" aria-label="Secondary keyboard layout">
+        <option value="dvorak">Dvorak</option>
+        <option value="colemak">Colemak</option>
+        <option value="colemak_dh">Colemak-DH</option>
+        <option value="workman">Workman</option>
+        <option value="azerty">AZERTY (French)</option>
+        <option value="qwertz">QWERTZ (German)</option>
+      </select>
+    </div>
+    <div class="entropy-badge" id="entropyBadge"></div>
+  </div>
+
+  <!-- Charset display -->
   <div class="charset-row" id="charsetRow">
     <span class="charset-label">Charset →</span>
     <div class="charset-chars" id="charsetChars"></div>
+    <span class="charset-count" id="charsetCount"></span>
   </div>
 
+  <!-- Controls -->
   <div class="controls">
     <span class="control-label">Length</span>
     <div class="length-control">
@@ -327,102 +480,253 @@
 
   <footer>
     <span>No data leaves your browser · All entropy from <code>crypto.getRandomValues()</code></span>
-    <span>
-      Same physical key on US QWERTY &amp; Dvorak:
-      <code>a m A M 0–9 ! @ # $ % ^ &amp; * ( )</code>
-    </span>
+    <span>Characters that produce identical output on the same physical key, in the same shift state, on both layouts.</span>
   </footer>
 
 </div>
 
 <script>
-  // ── Character set ─────────────────────────────────────────────────────────
-  // Keys that produce the SAME character on the same physical key in both
-  // US QWERTY and standard Dvorak (verified against both layout maps):
-  //   Letters:  a  m  A  M          (all other letters map to different keys)
-  //   Digits:   0–9                  (number row is identical)
-  //   Symbols:  ! @ # $ % ^ & * ( ) (shift + same number row keys)
+  // ── Layout definitions ─────────────────────────────────────────────────────
   //
-  // Deliberately excluded: ` ~ \ |  (valid but add little entropy and may
-  // cause issues in shells / config files)
+  // Each layout is a map: physicalKeyId → [unshifted, shifted]
+  // Key IDs use QWERTY notation as canonical physical key names.
+  // The intersection of two layouts = all characters where the same physical
+  // key produces the same character in the same shift state on both layouts.
 
-  const CHARSET_LOWER   = ['a', 'm'];
-  const CHARSET_UPPER   = ['A', 'M'];
-  const CHARSET_DIGITS  = ['0','1','2','3','4','5','6','7','8','9'];
-  const CHARSET_SYMBOLS = ['!','@','#','$','%','^','&','*','(', ')'];
+  const QWERTY = {
+    BT:['`','~'],
+    D1:['1','!'], D2:['2','@'], D3:['3','#'], D4:['4','$'], D5:['5','%'],
+    D6:['6','^'], D7:['7','&'], D8:['8','*'], D9:['9','('], D0:['0',')'],
+    MI:['-','_'], EQ:['=','+'],
+    Q:['q','Q'], W:['w','W'], E:['e','E'], R:['r','R'], T:['t','T'],
+    Y:['y','Y'], U:['u','U'], I:['i','I'], O:['o','O'], P:['p','P'],
+    LB:['[','{'], RB:[']','}'], BS:['\\','|'],
+    A:['a','A'], S:['s','S'], D:['d','D'], F:['f','F'], G:['g','G'],
+    H:['h','H'], J:['j','J'], K:['k','K'], L:['l','L'],
+    SC:[';',':'], QT:["'",'"'],
+    Z:['z','Z'], X:['x','X'], C:['c','C'], V:['v','V'], B:['b','B'],
+    N:['n','N'], M:['m','M'], CM:[',','<'], PR:['.','>'], SL:['/','?'],
+  };
 
-  const CHARSET = [
-    ...CHARSET_LOWER,
-    ...CHARSET_UPPER,
-    ...CHARSET_DIGITS,
-    ...CHARSET_SYMBOLS,
-  ];
+  // Only keys that differ from QWERTY are listed; the rest inherit via spread.
+  const LAYOUTS = {
 
-  // Build charset display
-  function buildCharsetDisplay() {
-    const container = document.getElementById('charsetChars');
-    const groups = [
-      { chars: CHARSET_LOWER,   cls: 'c-lower'  },
-      { chars: CHARSET_UPPER,   cls: 'c-upper'  },
-      { chars: CHARSET_DIGITS,  cls: 'c-digit'  },
-      { chars: CHARSET_SYMBOLS, cls: 'c-symbol' },
-    ];
-    groups.forEach(({ chars, cls }) => {
-      chars.forEach(c => {
-        const pill = document.createElement('span');
-        pill.className = `char-pill ${cls}`;
-        pill.textContent = c === ' ' ? '(space)' : c;
-        container.appendChild(pill);
-      });
-    });
+    dvorak: {
+      name: 'Dvorak',
+      // Reference: standard US Dvorak layout (ANSI)
+      keys: { ...QWERTY,
+        MI:['[','{'],  EQ:[']','}'],
+        Q:["'",'"'],   W:[',','<'],   E:['.','>'],  R:['p','P'],  T:['y','Y'],
+        Y:['f','F'],   U:['g','G'],   I:['c','C'],  O:['r','R'],  P:['l','L'],
+        LB:['/','?'],  RB:['=','+'],
+        S:['o','O'],   D:['e','E'],   F:['u','U'],  G:['i','I'],
+        H:['d','D'],   J:['h','H'],   K:['t','T'],  L:['n','N'],
+        SC:['s','S'],  QT:['-','_'],
+        Z:[';',':'],   X:['q','Q'],   C:['j','J'],  V:['k','K'],  B:['x','X'],
+        N:['b','B'],   CM:['w','W'],  PR:['v','V'], SL:['z','Z'],
+        // A→a, M→m: same as QWERTY
+      },
+    },
+
+    colemak: {
+      name: 'Colemak',
+      // Reference: colemak.com — only letter keys change; all symbols unchanged
+      keys: { ...QWERTY,
+        E:['f','F'],  R:['p','P'],  T:['g','G'],  Y:['j','J'],  U:['l','L'],
+        I:['u','U'],  O:['y','Y'],  P:[';',':'],
+        S:['r','R'],  D:['s','S'],  F:['t','T'],  G:['d','D'],
+        J:['n','N'],  K:['e','E'],  L:['i','I'],  SC:['o','O'],
+        N:['k','K'],
+        // Unchanged: Q W A H Z X C V B M and all symbol keys
+      },
+    },
+
+    colemak_dh: {
+      name: 'Colemak-DH',
+      // Reference: colemakmods.github.io/mod-dh — DHm (matrix) variant
+      // Compared to Colemak: T→b, G→g (same as QWERTY!), H→m, V→d, B→v, M→h
+      keys: { ...QWERTY,
+        E:['f','F'],  R:['p','P'],  T:['b','B'],  Y:['j','J'],  U:['l','L'],
+        I:['u','U'],  O:['y','Y'],  P:[';',':'],
+        S:['r','R'],  D:['s','S'],  F:['t','T'],
+        // G stays ['g','G'] — same as QWERTY, so no override needed
+        H:['m','M'],  J:['n','N'],  K:['e','E'],  L:['i','I'],  SC:['o','O'],
+        V:['d','D'],  B:['v','V'],  N:['k','K'],  M:['h','H'],
+        // Unchanged: Q W A G Z X C and all symbol keys
+      },
+    },
+
+    workman: {
+      name: 'Workman',
+      // Reference: workmanlayout.com
+      keys: { ...QWERTY,
+        W:['d','D'],  E:['r','R'],  R:['w','W'],  T:['b','B'],
+        Y:['j','J'],  U:['f','F'],  I:['u','U'],  O:['p','P'],  P:[';',':'],
+        D:['h','H'],  F:['t','T'],
+        // G stays ['g','G']
+        H:['y','Y'],  J:['n','N'],  K:['e','E'],  L:['o','O'],  SC:['i','I'],
+        C:['m','M'],  V:['c','C'],  B:['v','V'],  N:['k','K'],  M:['l','L'],
+        // Unchanged: Q A S G Z X and all symbol keys
+      },
+    },
+
+    azerty: {
+      name: 'AZERTY (French)',
+      // Reference: standard NF Z71-300 French AZERTY
+      // Number row: unshifted are symbols/accented chars; shifted are digits.
+      // EQ key (= position) keeps = / + — same as QWERTY.
+      keys: { ...QWERTY,
+        BT: ['\u00b2', ''],
+        D1: ['&', '1'],   D2: ['\u00e9', '2'], D3: ['"',  '3'],   D4: ["'", '4'],
+        D5: ['(',  '5'],  D6: ['-',  '6'],      D7: ['\u00e8','7'], D8: ['_',  '8'],
+        D9: ['\u00e7','9'], D0: ['\u00e0','0'], MI: [')', '\u00b0'],
+        // EQ: ['=','+'] — intentionally same as QWERTY, no override
+        Q:  ['a','A'],  W:  ['z','Z'],
+        // E R T Y U I O P — same as QWERTY
+        LB: ['^', '\u00a8'], RB: ['$', '\u00a3'], BS: ['*', '\u00b5'],
+        A:  ['q','Q'],
+        // S D F G H J K L — same as QWERTY
+        SC: ['m','M'],   QT: ['\u00f9', '%'],
+        Z:  ['w','W'],
+        // X C V B N — same as QWERTY
+        M:  [',', '?'],  CM: [';', '.'],  PR: [':', '/'],  SL: ['!', '\u00a7'],
+      },
+    },
+
+    qwertz: {
+      name: 'QWERTZ (German)',
+      // Reference: standard German DIN 2137 QWERTZ
+      // Y and Z keys are swapped. Many symbol keys differ.
+      keys: { ...QWERTY,
+        BT: ['^', '\u00b0'],
+        // D1 [1,!] same as QWERTY ✓
+        D2: ['2', '"'],   D3: ['3', '\u00a7'],
+        // D4 [4,$] same ✓  D5 [5,%] same ✓  D6 [6,^→&]
+        D6: ['6', '&'],   D7: ['7', '/'],
+        D8: ['8', '('],   D9: ['9', ')'],   D0: ['0', '='],
+        MI: ['\u00df', '?'],   EQ: ['\u00b4', '`'],
+        Y:  ['z','Z'],
+        LB: ['\u00fc','\u00dc'],  RB: ['+','*'],  BS: ['#',"'"],
+        Z:  ['y','Y'],
+        SC: ['\u00f6','\u00d6'], QT: ['\u00e4','\u00c4'],
+        CM: [',', ';'],  PR: ['.', ':'],  SL: ['-', '_'],
+      },
+    },
+
+  };
+
+  // ── Charset computation ────────────────────────────────────────────────────
+
+  function computeCharset(secondaryKeys) {
+    const chars = new Set();
+    for (const key of Object.keys(QWERTY)) {
+      const sec = secondaryKeys[key];
+      if (!sec) continue;
+      const [u1, s1] = QWERTY[key];
+      const [u2, s2] = sec;
+      if (u1 && u1 === u2) chars.add(u1);
+      if (s1 && s1 === s2) chars.add(s1);
+    }
+    // Sort: lowercase → uppercase → digits → symbols
+    const rank = c => {
+      if (/[a-z]/.test(c)) return 0;
+      if (/[A-Z]/.test(c)) return 1;
+      if (/[0-9]/.test(c)) return 2;
+      return 3;
+    };
+    return [...chars].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
   }
 
   // ── Secure random ─────────────────────────────────────────────────────────
+
   function secureRandom(max) {
-    // Rejection sampling to avoid modulo bias
     const limit = 256 - (256 % max);
     const buf = new Uint8Array(1);
-    let val;
-    do {
-      crypto.getRandomValues(buf);
-      val = buf[0];
-    } while (val >= limit);
-    return val % max;
+    let v;
+    do { crypto.getRandomValues(buf); v = buf[0]; } while (v >= limit);
+    return v % max;
   }
 
-  function generatePassword(length) {
+  function generatePassword(charset, length) {
+    if (!charset.length) return '';
     let pw = '';
-    for (let i = 0; i < length; i++) {
-      pw += CHARSET[secureRandom(CHARSET.length)];
-    }
+    for (let i = 0; i < length; i++) pw += charset[secureRandom(charset.length)];
     return pw;
   }
 
   // ── Rendering ─────────────────────────────────────────────────────────────
-  function classFor(ch) {
-    if (CHARSET_DIGITS.includes(ch))  return 'c-digit';
-    if (CHARSET_UPPER.includes(ch))   return 'c-upper';
-    if (CHARSET_SYMBOLS.includes(ch)) return 'c-symbol';
-    return 'c-lower';
+
+  function charClass(ch) {
+    if (/[a-z]/.test(ch)) return 'c-lower';
+    if (/[A-Z]/.test(ch)) return 'c-upper';
+    if (/[0-9]/.test(ch)) return 'c-digit';
+    return 'c-symbol';
   }
 
-  function renderPassword(pw) {
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function renderColoredPassword(pw) {
     return [...pw].map(ch =>
-      `<span class="${classFor(ch)}">${ch === '&' ? '&amp;' : ch === '<' ? '&lt;' : ch}</span>`
+      `<span class="${charClass(ch)}">${escHtml(ch)}</span>`
     ).join('');
   }
 
   const COUNT = 20;
+  let currentCharset = [];
+
+  function updateCharsetDisplay(charset) {
+    const container = document.getElementById('charsetChars');
+    const counter = document.getElementById('charsetCount');
+    container.innerHTML = '';
+    charset.forEach(ch => {
+      const pill = document.createElement('span');
+      pill.className = `char-pill ${charClass(ch)}`;
+      pill.textContent = ch;
+      container.appendChild(pill);
+    });
+    counter.textContent = `(${charset.length} chars)`;
+  }
+
+  function updateEntropyDisplay(charset, length) {
+    const badge = document.getElementById('entropyBadge');
+    if (!charset.length) {
+      badge.innerHTML = '';
+      return;
+    }
+    const bits = (length * Math.log2(charset.length)).toFixed(1);
+    // Map to a 0-100 scale where 128 bits is "full"
+    const pct = Math.min(100, (bits / 128) * 100).toFixed(0);
+    const col = bits < 60 ? 'var(--red)' : bits < 80 ? 'var(--accent)' : 'var(--green)';
+    badge.innerHTML = `
+      <span>entropy</span>
+      <div class="entropy-bar"><div class="entropy-bar-fill" style="width:${pct}%;background:${col}"></div></div>
+      <span class="entropy-value" style="color:${col}">~${bits} bits</span>
+    `;
+  }
 
   function generate() {
+    const layoutId = document.getElementById('layoutSelect').value;
+    const layout = LAYOUTS[layoutId];
+    currentCharset = computeCharset(layout.keys);
+
     const length = clampLength(parseInt(document.getElementById('lenInput').value, 10) || 20);
     document.getElementById('lenInput').value = length;
+
+    updateCharsetDisplay(currentCharset);
+    updateEntropyDisplay(currentCharset, length);
 
     const list = document.getElementById('pwList');
     list.innerHTML = '';
 
+    if (!currentCharset.length) {
+      list.innerHTML = '<div class="empty-state">No characters shared between these two layouts.</div>';
+      return;
+    }
+
     for (let i = 0; i < COUNT; i++) {
-      const pw = generatePassword(length);
+      const pw = generatePassword(currentCharset, length);
 
       const item = document.createElement('div');
       item.className = 'pw-item';
@@ -434,13 +738,12 @@
 
       const text = document.createElement('span');
       text.className = 'pw-text';
-      text.innerHTML = renderPassword(pw);
+      text.innerHTML = renderColoredPassword(pw);
 
       const btn = document.createElement('button');
       btn.className = 'copy-btn';
       btn.textContent = 'Copy';
       btn.setAttribute('aria-label', `Copy password ${i + 1}`);
-
       btn.addEventListener('click', () => copyPw(pw, btn));
 
       item.appendChild(idx);
@@ -456,55 +759,40 @@
       btn.textContent = '✓ Copied';
       btn.classList.add('copied');
     } catch {
-      // Fallback
-      const ta = document.createElement('textarea');
-      ta.value = pw;
-      ta.style.position = 'fixed';
-      ta.style.opacity = '0';
+      const ta = Object.assign(document.createElement('textarea'), {
+        value: pw, style: 'position:fixed;opacity:0'
+      });
       document.body.appendChild(ta);
       ta.select();
-      try {
-        document.execCommand('copy');
-        btn.textContent = '✓ Copied';
-        btn.classList.add('copied');
-      } catch {
-        btn.textContent = '✗ Failed';
-        btn.classList.add('error');
-      }
+      try { document.execCommand('copy'); btn.textContent = '✓ Copied'; btn.classList.add('copied'); }
+      catch { btn.textContent = '✗ Failed'; btn.classList.add('error'); }
       document.body.removeChild(ta);
     }
-    setTimeout(() => {
-      btn.textContent = 'Copy';
-      btn.classList.remove('copied', 'error');
-    }, 1800);
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied','error'); }, 1800);
   }
 
   // ── Length control ────────────────────────────────────────────────────────
-  const MIN_LEN = 4;
-  const MAX_LEN = 128;
+
+  const MIN_LEN = 4, MAX_LEN = 128;
 
   function clampLength(v) {
-    if (isNaN(v)) return 20;
-    return Math.min(MAX_LEN, Math.max(MIN_LEN, v));
+    return isNaN(v) ? 20 : Math.min(MAX_LEN, Math.max(MIN_LEN, v));
   }
 
   function setLength(delta) {
     const input = document.getElementById('lenInput');
-    const next = clampLength((parseInt(input.value, 10) || 20) + delta);
-    input.value = next;
+    input.value = clampLength((parseInt(input.value, 10) || 20) + delta);
     generate();
   }
 
   document.getElementById('btnUp').addEventListener('click',   () => setLength(+1));
   document.getElementById('btnDown').addEventListener('click', () => setLength(-1));
 
-  // Mousewheel only on the input field itself
   document.getElementById('lenInput').addEventListener('wheel', e => {
     e.preventDefault();
     setLength(e.deltaY < 0 ? +1 : -1);
   }, { passive: false });
 
-  // Typing in the field
   let debounceTimer;
   document.getElementById('lenInput').addEventListener('input', () => {
     clearTimeout(debounceTimer);
@@ -514,13 +802,13 @@
   document.getElementById('lenInput').addEventListener('keydown', e => {
     if (e.key === 'ArrowUp')   { e.preventDefault(); setLength(+1); }
     if (e.key === 'ArrowDown') { e.preventDefault(); setLength(-1); }
-    if (e.key === 'Enter')     { generate(); }
+    if (e.key === 'Enter')     generate();
   });
 
+  document.getElementById('layoutSelect').addEventListener('change', generate);
   document.getElementById('regenBtn').addEventListener('click', generate);
 
   // ── Init ──────────────────────────────────────────────────────────────────
-  buildCharsetDisplay();
   generate();
 </script>
 </body>
