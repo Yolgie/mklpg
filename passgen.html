@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QD·Pass — QWERTY/Dvorak Safe Password Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,700;1,300&family=Syne:wght@400;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:        #0c0d0f;
+      --surface:   #131519;
+      --border:    #1f2229;
+      --border-hi: #2e3340;
+      --text:      #c8cdd8;
+      --muted:     #555d6e;
+      --accent:    #e8c84a;
+      --accent-dim:#7a6820;
+      --green:     #4acea8;
+      --red:       #e8604a;
+      --mono:      'JetBrains Mono', monospace;
+      --sans:      'Syne', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      min-height: 100vh;
+      padding: 2rem 1rem 4rem;
+    }
+
+    /* Subtle grid background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 40px 40px;
+      opacity: 0.4;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .wrapper {
+      position: relative;
+      z-index: 1;
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    /* ── Header ── */
+    header {
+      margin-bottom: 2.5rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1.5rem;
+    }
+
+    .logo {
+      font-family: var(--sans);
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: #fff;
+      margin-bottom: 0.25rem;
+    }
+
+    .logo span { color: var(--accent); }
+
+    .subtitle {
+      font-size: 0.75rem;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    /* ── Charset pill ── */
+    .charset-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 2rem;
+      font-size: 0.7rem;
+    }
+
+    .charset-label {
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .charset-chars {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px;
+    }
+
+    .char-pill {
+      background: var(--surface);
+      border: 1px solid var(--border-hi);
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-size: 0.72rem;
+      color: var(--accent);
+      font-family: var(--mono);
+      user-select: none;
+    }
+
+    /* ── Controls ── */
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.75rem;
+      flex-wrap: wrap;
+    }
+
+    .control-label {
+      font-size: 0.7rem;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .length-control {
+      display: flex;
+      align-items: stretch;
+      border: 1px solid var(--border-hi);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .len-btn {
+      background: var(--surface);
+      border: none;
+      color: var(--accent);
+      width: 36px;
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      font-family: var(--mono);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .len-btn:hover { background: var(--border-hi); color: #fff; }
+    .len-btn:active { background: var(--accent-dim); }
+
+    .len-input {
+      background: var(--bg);
+      border: none;
+      color: #fff;
+      font-family: var(--mono);
+      font-size: 0.95rem;
+      width: 52px;
+      text-align: center;
+      outline: none;
+      padding: 0 2px;
+      -moz-appearance: textfield;
+    }
+    .len-input::-webkit-inner-spin-button,
+    .len-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+    .regen-btn {
+      background: transparent;
+      border: 1px solid var(--border-hi);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      letter-spacing: 0.06em;
+      padding: 0.45rem 1rem;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+      text-transform: uppercase;
+      margin-left: auto;
+    }
+
+    .regen-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(232,200,74,0.05);
+    }
+
+    /* ── Password list ── */
+    .pw-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .pw-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.6rem 0.75rem;
+      transition: border-color 0.15s, background 0.15s;
+      animation: fadeIn 0.25s ease both;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .pw-item:hover {
+      border-color: var(--border-hi);
+      background: #161820;
+    }
+
+    .pw-index {
+      color: var(--muted);
+      font-size: 0.65rem;
+      width: 20px;
+      text-align: right;
+      flex-shrink: 0;
+      user-select: none;
+    }
+
+    .pw-text {
+      flex: 1;
+      font-size: 0.9rem;
+      letter-spacing: 0.04em;
+      color: #fff;
+      word-break: break-all;
+      cursor: default;
+    }
+
+    /* Colour different char classes */
+    .pw-text .c-digit  { color: var(--green); }
+    .pw-text .c-upper  { color: var(--accent); }
+    .pw-text .c-lower  { color: #fff; }
+    .pw-text .c-symbol { color: #a78bfa; }
+
+    .copy-btn {
+      background: transparent;
+      border: 1px solid var(--border-hi);
+      border-radius: 4px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 0.65rem;
+      letter-spacing: 0.05em;
+      padding: 0.25rem 0.55rem;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+      text-transform: uppercase;
+      min-width: 52px;
+      text-align: center;
+    }
+
+    .copy-btn:hover {
+      border-color: var(--green);
+      color: var(--green);
+      background: rgba(74,206,168,0.06);
+    }
+
+    .copy-btn.copied {
+      border-color: var(--green);
+      color: var(--green);
+      background: rgba(74,206,168,0.1);
+    }
+
+    .copy-btn.error {
+      border-color: var(--red);
+      color: var(--red);
+    }
+
+    /* ── Footer ── */
+    footer {
+      margin-top: 2.5rem;
+      border-top: 1px solid var(--border);
+      padding-top: 1rem;
+      font-size: 0.65rem;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    footer a { color: var(--muted); text-decoration: underline; }
+
+    @media (max-width: 500px) {
+      .logo { font-size: 1.5rem; }
+      .pw-text { font-size: 0.78rem; }
+      .regen-btn { margin-left: 0; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <div class="logo">QD<span>·</span>Pass</div>
+    <div class="subtitle">QWERTY / Dvorak — same-key characters only · runs entirely in your browser</div>
+  </header>
+
+  <div class="charset-row" id="charsetRow">
+    <span class="charset-label">Charset →</span>
+    <div class="charset-chars" id="charsetChars"></div>
+  </div>
+
+  <div class="controls">
+    <span class="control-label">Length</span>
+    <div class="length-control">
+      <button class="len-btn" id="btnDown" aria-label="Decrease length">−</button>
+      <input class="len-input" id="lenInput" type="number" min="4" max="128" value="20" aria-label="Password length" />
+      <button class="len-btn" id="btnUp" aria-label="Increase length">+</button>
+    </div>
+    <button class="regen-btn" id="regenBtn">↻ Regenerate</button>
+  </div>
+
+  <div class="pw-list" id="pwList"></div>
+
+  <footer>
+    <span>No data leaves your browser · All entropy from <code>crypto.getRandomValues()</code></span>
+    <span>
+      Same physical key on US QWERTY &amp; Dvorak:
+      <code>a m A M 0–9 ! @ # $ % ^ &amp; * ( )</code>
+    </span>
+  </footer>
+
+</div>
+
+<script>
+  // ── Character set ─────────────────────────────────────────────────────────
+  // Keys that produce the SAME character on the same physical key in both
+  // US QWERTY and standard Dvorak (verified against both layout maps):
+  //   Letters:  a  m  A  M          (all other letters map to different keys)
+  //   Digits:   0–9                  (number row is identical)
+  //   Symbols:  ! @ # $ % ^ & * ( ) (shift + same number row keys)
+  //
+  // Deliberately excluded: ` ~ \ |  (valid but add little entropy and may
+  // cause issues in shells / config files)
+
+  const CHARSET_LOWER   = ['a', 'm'];
+  const CHARSET_UPPER   = ['A', 'M'];
+  const CHARSET_DIGITS  = ['0','1','2','3','4','5','6','7','8','9'];
+  const CHARSET_SYMBOLS = ['!','@','#','$','%','^','&','*','(', ')'];
+
+  const CHARSET = [
+    ...CHARSET_LOWER,
+    ...CHARSET_UPPER,
+    ...CHARSET_DIGITS,
+    ...CHARSET_SYMBOLS,
+  ];
+
+  // Build charset display
+  function buildCharsetDisplay() {
+    const container = document.getElementById('charsetChars');
+    const groups = [
+      { chars: CHARSET_LOWER,   cls: 'c-lower'  },
+      { chars: CHARSET_UPPER,   cls: 'c-upper'  },
+      { chars: CHARSET_DIGITS,  cls: 'c-digit'  },
+      { chars: CHARSET_SYMBOLS, cls: 'c-symbol' },
+    ];
+    groups.forEach(({ chars, cls }) => {
+      chars.forEach(c => {
+        const pill = document.createElement('span');
+        pill.className = `char-pill ${cls}`;
+        pill.textContent = c === ' ' ? '(space)' : c;
+        container.appendChild(pill);
+      });
+    });
+  }
+
+  // ── Secure random ─────────────────────────────────────────────────────────
+  function secureRandom(max) {
+    // Rejection sampling to avoid modulo bias
+    const limit = 256 - (256 % max);
+    const buf = new Uint8Array(1);
+    let val;
+    do {
+      crypto.getRandomValues(buf);
+      val = buf[0];
+    } while (val >= limit);
+    return val % max;
+  }
+
+  function generatePassword(length) {
+    let pw = '';
+    for (let i = 0; i < length; i++) {
+      pw += CHARSET[secureRandom(CHARSET.length)];
+    }
+    return pw;
+  }
+
+  // ── Rendering ─────────────────────────────────────────────────────────────
+  function classFor(ch) {
+    if (CHARSET_DIGITS.includes(ch))  return 'c-digit';
+    if (CHARSET_UPPER.includes(ch))   return 'c-upper';
+    if (CHARSET_SYMBOLS.includes(ch)) return 'c-symbol';
+    return 'c-lower';
+  }
+
+  function renderPassword(pw) {
+    return [...pw].map(ch =>
+      `<span class="${classFor(ch)}">${ch === '&' ? '&amp;' : ch === '<' ? '&lt;' : ch}</span>`
+    ).join('');
+  }
+
+  const COUNT = 20;
+
+  function generate() {
+    const length = clampLength(parseInt(document.getElementById('lenInput').value, 10) || 20);
+    document.getElementById('lenInput').value = length;
+
+    const list = document.getElementById('pwList');
+    list.innerHTML = '';
+
+    for (let i = 0; i < COUNT; i++) {
+      const pw = generatePassword(length);
+
+      const item = document.createElement('div');
+      item.className = 'pw-item';
+      item.style.animationDelay = `${i * 18}ms`;
+
+      const idx = document.createElement('span');
+      idx.className = 'pw-index';
+      idx.textContent = String(i + 1).padStart(2, '0');
+
+      const text = document.createElement('span');
+      text.className = 'pw-text';
+      text.innerHTML = renderPassword(pw);
+
+      const btn = document.createElement('button');
+      btn.className = 'copy-btn';
+      btn.textContent = 'Copy';
+      btn.setAttribute('aria-label', `Copy password ${i + 1}`);
+
+      btn.addEventListener('click', () => copyPw(pw, btn));
+
+      item.appendChild(idx);
+      item.appendChild(text);
+      item.appendChild(btn);
+      list.appendChild(item);
+    }
+  }
+
+  async function copyPw(pw, btn) {
+    try {
+      await navigator.clipboard.writeText(pw);
+      btn.textContent = '✓ Copied';
+      btn.classList.add('copied');
+    } catch {
+      // Fallback
+      const ta = document.createElement('textarea');
+      ta.value = pw;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        btn.textContent = '✓ Copied';
+        btn.classList.add('copied');
+      } catch {
+        btn.textContent = '✗ Failed';
+        btn.classList.add('error');
+      }
+      document.body.removeChild(ta);
+    }
+    setTimeout(() => {
+      btn.textContent = 'Copy';
+      btn.classList.remove('copied', 'error');
+    }, 1800);
+  }
+
+  // ── Length control ────────────────────────────────────────────────────────
+  const MIN_LEN = 4;
+  const MAX_LEN = 128;
+
+  function clampLength(v) {
+    if (isNaN(v)) return 20;
+    return Math.min(MAX_LEN, Math.max(MIN_LEN, v));
+  }
+
+  function setLength(delta) {
+    const input = document.getElementById('lenInput');
+    const next = clampLength((parseInt(input.value, 10) || 20) + delta);
+    input.value = next;
+    generate();
+  }
+
+  document.getElementById('btnUp').addEventListener('click',   () => setLength(+1));
+  document.getElementById('btnDown').addEventListener('click', () => setLength(-1));
+
+  // Mousewheel only on the input field itself
+  document.getElementById('lenInput').addEventListener('wheel', e => {
+    e.preventDefault();
+    setLength(e.deltaY < 0 ? +1 : -1);
+  }, { passive: false });
+
+  // Typing in the field
+  let debounceTimer;
+  document.getElementById('lenInput').addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(generate, 400);
+  });
+
+  document.getElementById('lenInput').addEventListener('keydown', e => {
+    if (e.key === 'ArrowUp')   { e.preventDefault(); setLength(+1); }
+    if (e.key === 'ArrowDown') { e.preventDefault(); setLength(-1); }
+    if (e.key === 'Enter')     { generate(); }
+  });
+
+  document.getElementById('regenBtn').addEventListener('click', generate);
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  buildCharsetDisplay();
+  generate();
+</script>
+</body>
+</html>
