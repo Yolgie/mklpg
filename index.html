@@ -311,6 +311,27 @@
       background: rgba(232,200,74,0.05);
     }
 
+    .shell-safe-label {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.7rem;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .shell-safe-label input[type="checkbox"] {
+      accent-color: var(--accent);
+      width: 13px;
+      height: 13px;
+      cursor: pointer;
+    }
+
+    .shell-safe-label:hover { color: var(--text); }
+
     /* ── Password list ── */
     .pw-list {
       display: flex;
@@ -469,18 +490,23 @@
   <div class="controls">
     <span class="control-label">Length</span>
     <div class="length-control">
-      <button class="len-btn" id="btnDown" aria-label="Decrease length">−</button>
+      <button type="button" class="len-btn" id="btnDown" aria-label="Decrease length">−</button>
       <input class="len-input" id="lenInput" type="number" min="4" max="128" value="20" aria-label="Password length" />
-      <button class="len-btn" id="btnUp" aria-label="Increase length">+</button>
+      <button type="button" class="len-btn" id="btnUp" aria-label="Increase length">+</button>
     </div>
-    <button class="regen-btn" id="regenBtn">↻ Regenerate</button>
+    <label class="shell-safe-label" title="Excludes: backtick, tilde, backslash, pipe — characters that cause issues in shells and config files">
+      <input type="checkbox" id="shellSafe" checked />
+      <span>shell-safe</span>
+    </label>
+    <button type="button" class="regen-btn" id="regenBtn">↻ Regenerate</button>
   </div>
 
   <div class="pw-list" id="pwList"></div>
 
   <footer>
     <span>No data leaves your browser · All entropy from <code>crypto.getRandomValues()</code></span>
-    <span>Characters that produce identical output on the same physical key, in the same shift state, on both layouts.</span>
+    <span>Entropy: <span style="color:var(--red)">■ &lt;60 bits weak</span> · <span style="color:var(--accent)">■ &lt;80 bits ok</span> · <span style="color:var(--green)">■ 80+ bits strong</span> · bar fills at 128 bits (AES-128)</span>
+    <span>Characters that produce identical output on the same physical key, in the same shift state, on both layouts. AZERTY/QWERTZ symbol-key mappings vary between hardware vendors — prefer letter/digit passwords for those layouts.</span>
   </footer>
 
 </div>
@@ -615,9 +641,26 @@
 
   };
 
+  // ── Constants ─────────────────────────────────────────────────────────────
+
+  const COUNT = 20;
+  const MIN_LEN = 4, MAX_LEN = 128;
+  const ENTROPY_TARGET_BITS = 128; // bar fills at AES-128 equivalent
+  const ENTROPY_WARN_BITS   = 60;  // red below this
+  const ENTROPY_OK_BITS     = 80;  // amber below this, green at or above
+
+  // Characters that cause trouble in shells, .env files, config parsers.
+  // Excluded when the "shell-safe" toggle is on.
+  const SHELL_UNSAFE = new Set(['`', '~', '\\', '|']);
+
   // ── Charset computation ────────────────────────────────────────────────────
 
-  function computeCharset(secondaryKeys) {
+  // Hoisted so they're not recreated inside the sort comparator (fix #9)
+  const RE_LOWER  = /[a-z]/;
+  const RE_UPPER  = /[A-Z]/;
+  const RE_DIGIT  = /[0-9]/;
+
+  function computeCharset(secondaryKeys, shellSafe) {
     const chars = new Set();
     for (const key of Object.keys(QWERTY)) {
       const sec = secondaryKeys[key];
@@ -627,11 +670,17 @@
       if (u1 && u1 === u2) chars.add(u1);
       if (s1 && s1 === s2) chars.add(s1);
     }
-    // Sort: lowercase → uppercase → digits → symbols
+
+    // Filter shell-unsafe characters when toggle is on (fix #4)
+    if (shellSafe) {
+      for (const c of SHELL_UNSAFE) chars.delete(c);
+    }
+
+    // Sort: lowercase → uppercase → digits → symbols (fix #9: use hoisted regexes)
     const rank = c => {
-      if (/[a-z]/.test(c)) return 0;
-      if (/[A-Z]/.test(c)) return 1;
-      if (/[0-9]/.test(c)) return 2;
+      if (RE_LOWER.test(c)) return 0;
+      if (RE_UPPER.test(c)) return 1;
+      if (RE_DIGIT.test(c)) return 2;
       return 3;
     };
     return [...chars].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
@@ -639,27 +688,53 @@
 
   // ── Secure random ─────────────────────────────────────────────────────────
 
+  // Fix #2: guard against charset.length > 256 (would infinite-loop without this).
+  // We expand to the next multiple of 65536 so the same logic works for any
+  // realistic alphabet size up to 65535.
   function secureRandom(max) {
-    const limit = 256 - (256 % max);
-    const buf = new Uint8Array(1);
+    if (max <= 0) throw new RangeError('max must be > 0');
+    if (max === 1) return 0;
+    const BUF_SIZE = max <= 256 ? 256 : 65536;
+    const arr = max <= 256 ? new Uint8Array(1) : new Uint16Array(1);
+    const limit = BUF_SIZE - (BUF_SIZE % max);
     let v;
-    do { crypto.getRandomValues(buf); v = buf[0]; } while (v >= limit);
+    do {
+      crypto.getRandomValues(arr);
+      v = arr[0];
+    } while (v >= limit);
     return v % max;
   }
 
+  // Fix #5: fill one buffer per password rather than one syscall per character.
   function generatePassword(charset, length) {
     if (!charset.length) return '';
+    // Allocate generously to absorb rejection-sampling discards without
+    // a second getRandomValues call in the common case.
+    const CHUNK = Math.max(length * 2, 64);
     let pw = '';
-    for (let i = 0; i < length; i++) pw += charset[secureRandom(charset.length)];
+    let buf = new Uint8Array(CHUNK);
+    let pos = CHUNK; // force initial fill
+    while (pw.length < length) {
+      if (pos >= buf.length) {
+        buf = new Uint8Array(CHUNK);
+        crypto.getRandomValues(buf);
+        pos = 0;
+      }
+      const v = buf[pos++];
+      // Rejection sampling: discard values that would introduce bias
+      const limit = 256 - (256 % charset.length);
+      if (v >= limit) continue;
+      pw += charset[v % charset.length];
+    }
     return pw;
   }
 
   // ── Rendering ─────────────────────────────────────────────────────────────
 
   function charClass(ch) {
-    if (/[a-z]/.test(ch)) return 'c-lower';
-    if (/[A-Z]/.test(ch)) return 'c-upper';
-    if (/[0-9]/.test(ch)) return 'c-digit';
+    if (RE_LOWER.test(ch)) return 'c-lower';
+    if (RE_UPPER.test(ch)) return 'c-upper';
+    if (RE_DIGIT.test(ch)) return 'c-digit';
     return 'c-symbol';
   }
 
@@ -672,9 +747,6 @@
       `<span class="${charClass(ch)}">${escHtml(ch)}</span>`
     ).join('');
   }
-
-  const COUNT = 20;
-  let currentCharset = [];
 
   function updateCharsetDisplay(charset) {
     const container = document.getElementById('charsetChars');
@@ -691,42 +763,44 @@
 
   function updateEntropyDisplay(charset, length) {
     const badge = document.getElementById('entropyBadge');
-    if (!charset.length) {
-      badge.innerHTML = '';
-      return;
-    }
-    const bits = (length * Math.log2(charset.length)).toFixed(1);
-    // Map to a 0-100 scale where 128 bits is "full"
-    const pct = Math.min(100, (bits / 128) * 100).toFixed(0);
-    const col = bits < 60 ? 'var(--red)' : bits < 80 ? 'var(--accent)' : 'var(--green)';
+    if (!charset.length) { badge.innerHTML = ''; return; }
+    // Fix #6: use named constant instead of magic 128
+    const bits = length * Math.log2(charset.length);
+    const bitsStr = bits.toFixed(1);
+    const pct = Math.min(100, (bits / ENTROPY_TARGET_BITS) * 100).toFixed(0);
+    const col = bits < ENTROPY_WARN_BITS ? 'var(--red)'
+              : bits < ENTROPY_OK_BITS   ? 'var(--accent)'
+              : 'var(--green)';
     badge.innerHTML = `
       <span>entropy</span>
       <div class="entropy-bar"><div class="entropy-bar-fill" style="width:${pct}%;background:${col}"></div></div>
-      <span class="entropy-value" style="color:${col}">~${bits} bits</span>
+      <span class="entropy-value" style="color:${col}">~${bitsStr} bits</span>
     `;
   }
 
   function generate() {
-    const layoutId = document.getElementById('layoutSelect').value;
-    const layout = LAYOUTS[layoutId];
-    currentCharset = computeCharset(layout.keys);
+    const layoutId  = document.getElementById('layoutSelect').value;
+    const layout    = LAYOUTS[layoutId];
+    const shellSafe = document.getElementById('shellSafe').checked;
+    const charset   = computeCharset(layout.keys, shellSafe); // fix #3: no global
 
-    const length = clampLength(parseInt(document.getElementById('lenInput').value, 10) || 20);
+    // Fix #1: don't use `|| 20` — pass directly to clampLength which handles NaN
+    const length = clampLength(parseInt(document.getElementById('lenInput').value, 10));
     document.getElementById('lenInput').value = length;
 
-    updateCharsetDisplay(currentCharset);
-    updateEntropyDisplay(currentCharset, length);
+    updateCharsetDisplay(charset);
+    updateEntropyDisplay(charset, length);
 
     const list = document.getElementById('pwList');
     list.innerHTML = '';
 
-    if (!currentCharset.length) {
+    if (!charset.length) {
       list.innerHTML = '<div class="empty-state">No characters shared between these two layouts.</div>';
       return;
     }
 
     for (let i = 0; i < COUNT; i++) {
-      const pw = generatePassword(currentCharset, length);
+      const pw = generatePassword(charset, length);
 
       const item = document.createElement('div');
       item.className = 'pw-item';
@@ -741,6 +815,7 @@
       text.innerHTML = renderColoredPassword(pw);
 
       const btn = document.createElement('button');
+      btn.type = 'button';
       btn.className = 'copy-btn';
       btn.textContent = 'Copy';
       btn.setAttribute('aria-label', `Copy password ${i + 1}`);
@@ -773,10 +848,9 @@
 
   // ── Length control ────────────────────────────────────────────────────────
 
-  const MIN_LEN = 4, MAX_LEN = 128;
-
   function clampLength(v) {
-    return isNaN(v) ? 20 : Math.min(MAX_LEN, Math.max(MIN_LEN, v));
+    // Fix #1: NaN (empty input) clamps to MIN_LEN — no hidden fallback to 20
+    return isNaN(v) ? MIN_LEN : Math.min(MAX_LEN, Math.max(MIN_LEN, v));
   }
 
   function setLength(delta) {
@@ -806,6 +880,7 @@
   });
 
   document.getElementById('layoutSelect').addEventListener('change', generate);
+  document.getElementById('shellSafe').addEventListener('change', generate);
   document.getElementById('regenBtn').addEventListener('click', generate);
 
   // ── Init ──────────────────────────────────────────────────────────────────
