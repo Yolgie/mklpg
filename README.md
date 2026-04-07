@@ -111,7 +111,3 @@ index.html
 Layout definitions follow a simple convention: only keys that **differ** from QWERTY are listed; the rest are inherited via object spread. Adding a new layout means adding one entry to the `LAYOUTS` object and a matching `<option>` in the HTML.
 
 ---
-
-## Licence
-
-MIT
