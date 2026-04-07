@@ -332,6 +332,9 @@
 
     .shell-safe-label:hover { color: var(--text); }
 
+    .shell-safe-label:has(input:disabled) { cursor: not-allowed; }
+    .shell-safe-label:has(input:disabled):hover { color: var(--muted); }
+
     /* ── Password list ── */
     .pw-list {
       display: flex;
@@ -506,6 +509,7 @@
   <footer>
     <span>No data leaves your browser · All entropy from <code>crypto.getRandomValues()</code></span>
     <span>Entropy: <span style="color:var(--red)">■ &lt;60 bits weak</span> · <span style="color:var(--accent)">■ &lt;80 bits ok</span> · <span style="color:var(--green)">■ 80+ bits strong</span> · bar fills at 128 bits (AES-128)</span>
+    <span>Password colors: <span style="color:#fff">■ lowercase</span> · <span style="color:var(--accent)">■ uppercase</span> · <span style="color:var(--green)">■ digit</span> · <span style="color:var(--purple)">■ symbol</span></span>
     <span>Characters that produce identical output on the same physical key, in the same shift state, on both layouts. AZERTY/QWERTZ symbol-key mappings vary between hardware vendors — prefer letter/digit passwords for those layouts.</span>
   </footer>
 
@@ -782,7 +786,23 @@
     const layoutId  = document.getElementById('layoutSelect').value;
     const layout    = LAYOUTS[layoutId];
     const shellSafe = document.getElementById('shellSafe').checked;
-    const charset   = computeCharset(layout.keys, shellSafe); // fix #3: no global
+
+    // Compute the raw intersection first so we can tell whether the toggle
+    // would actually change anything for this layout pair.
+    const rawCharset  = computeCharset(layout.keys, false);
+    const hasUnsafe   = rawCharset.some(c => SHELL_UNSAFE.has(c));
+    const checkbox    = document.getElementById('shellSafe');
+    const checkLabel  = checkbox.closest('label');
+    checkbox.disabled = !hasUnsafe;
+    checkLabel.title  = hasUnsafe
+      ? 'Excludes: backtick, tilde, backslash, pipe — characters that cause issues in shells and config files'
+      : 'No shell-unsafe characters in the overlapping charset for this layout pair';
+    checkLabel.style.opacity = hasUnsafe ? '' : '0.4';
+
+    // Reuse the already-computed rawCharset when filtering isn't needed
+    const charset = hasUnsafe && shellSafe
+      ? computeCharset(layout.keys, true)
+      : rawCharset;
 
     // Fix #1: don't use `|| 20` — pass directly to clampLength which handles NaN
     const length = clampLength(parseInt(document.getElementById('lenInput').value, 10));
